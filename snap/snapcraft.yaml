@@ -396,7 +396,7 @@ parts:
     after: [ libraries ]
     source: https://salsa.debian.org/libvirt-team/osinfo-db.git
     source-depth: 1
-    source-tag: "upstream/0.20231215"
+    source-tag: 'upstream/0.20240510'
 # ext:updatesnap
 #   version-format:
 #     format: "upstream/%M.%m"
