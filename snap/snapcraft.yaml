@@ -2,7 +2,7 @@ name: gnome-boxes
 adopt-info: gnome-boxes
 grade: stable # must be 'stable' to release into candidate/stable channels
 confinement: strict
-base: core22
+base: core24
 
 layout:
   /usr/share/OVMF:
@@ -16,7 +16,7 @@ layout:
   /usr/share/misc/pci.ids:
     symlink: $SNAP/usr/share/misc/pci.ids
   /usr/share/libosinfo/pci.ids:
-    symlink: $SNAP/usr/share/libosinfo/pci.ids
+    symlink: $SNAP/usr/share/misc/pci.ids
   /usr/lib/$CRAFT_ARCH_TRIPLET/libvirt:
     bind: $SNAP/usr/lib/$CRAFT_ARCH_TRIPLET/libvirt
   /usr/share/libvirt:
@@ -71,61 +71,20 @@ apps:
     desktop: usr/share/applications/org.gnome.Boxes.desktop
     common-id: org.gnome.Boxes.desktop
     environment:
-      LD_LIBRARY_PATH: $SNAP/usr/lib/$CRAFT_ARCH_TRIPLET/gnome-boxes
+      LD_LIBRARY_PATH: $SNAP/usr/lib/$CRAFT_ARCH_TRIPLET/gnome-boxes${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
       GI_TYPELIB_PATH: $SNAP/usr/lib/$CRAFT_ARCH_TRIPLET/gnome-boxes/girepository-1.0${GI_TYPELIB_PATH:+:$GI_TYPELIB_PATH}
       GTK_USE_PORTAL: '0'
       LIBVIRT_DEFAULT_URI: 'qemu+unix:///session'
 
 parts:
   libvirt:
-    source: https://gitlab.com/libvirt/libvirt.git
-    source-depth: 1
-    source-tag: 'v6.0.0'
-    plugin: autotools
-# ext:updatesnap
-#   version-format:
-#     lower-than: 6.1.0
-    build-packages:
-      - libxml2-dev
-      - libncurses5-dev
-      - libreadline-dev
-      - zlib1g-dev
-      - libgcrypt20-dev
-      - libgnutls28-dev
-      - libsasl2-dev
-      - libxen-dev
-      - libparted-dev
-      - libdevmapper-dev
-      - uuid-dev
-      - libudev-dev
-      - libpciaccess-dev
-      - libcurl4-gnutls-dev
-      - libpolkit-gobject-1-dev
-      - libcap-ng-dev
-      - libnl-3-dev
-      - libnl-route-3-dev
-      - libyajl-dev
-      - libpcap0.8-dev
-      - libnuma-dev
-      - libsanlock-dev
-      - libaudit-dev
-      - libselinux1-dev
-      - libapparmor-dev
-      - libdbus-1-dev
-      - systemtap-sdt-dev
-      - libzfslinux-dev
-      - librbd-dev
-      - librados-dev
-      - libglusterfs-dev
-      - libwireshark-dev
-      - libwiretap-dev
-      - libfuse-dev
-      - qemu-utils
-      - python3-docutils
-      - qemu-system-common
-      - xsltproc
-      - libxslt1-dev
+    plugin: nil
     stage-packages:
+      - libvirt-daemon
+      - libvirt-daemon-config-network
+      - libvirt-daemon-config-nwfilter
+      - libvirt-daemon-driver-qemu
+      - libvirt-daemon-system
       - libacl1
       - libapparmor1
       - libaudit1
@@ -154,7 +113,7 @@ parts:
       - libtirpc3
       - libudev1
       - libxencall1
-      - libxenmisc4.16
+      - libxenmisc4.17t64
       - libxendevicemodel1
       - libxenevtchn1
       - libxenforeignmemory1
@@ -164,48 +123,8 @@ parts:
       - libxentoollog1
       - libxml2
       - libyajl2
-    build-environment:
-      - CFLAGS: "-Wno-error"
-    override-pull: |
-      craftctl default
-      git apply $CRAFT_PROJECT_DIR/patches/libvirt-qemu.patch
-    override-build: |
-      mkdir build && cd build
-      ../autogen.sh --prefix=/usr --sysconfdir=/etc --localstatedir=/var --with-qemu
-      sed -i "s# docs # #g" Makefile
-      make
-      DESTDIR=$CRAFT_PART_INSTALL make install
-    stage:
-      - -usr/lib/*/ceph/libceph-common.so.* # conflicts with qemu part
-      - -usr/lib/*/ceph/librbd/libceph_librbd_parent_cache.so.* # conflicts with qemu part
-      - -usr/lib/*/ceph/librbd/libceph_librbd_pwl_cache.so.* # conflicts with qemu part
-      - -usr/lib/*/librados.so.* # conflicts with qemu part
-      - -usr/lib/*/librbd.so.* # conflicts with qemu part
-      - -usr/lib/*/libgfapi.so.* # conflicts with qemu part
-      - -usr/lib/*/libgfrpc.so.* # conflicts with qemu part
-      - -usr/lib/*/libgfxdr.so.* # conflicts with qemu part
-      - -usr/lib/*/libglusterfs.so.* # conflicts with qemu part
-      - -usr/lib/*/libyajl.so.* # conflicts with qemu part
-    prime:
-      - -usr/include
-      - -usr/lib/pkgconfig
-
-  libvirt-glib:
-    source: https://github.com/libvirt/libvirt-glib.git
-    source-tag: "v4.0.0"
-# ext:updatesnap
-#   version-format:
-#     lower-than: 5.0.0
-    after: [ libvirt ]
-    source-depth: 1
-    plugin: meson
-    meson-parameters:
-      - --prefix=/usr
-      - --buildtype=release
-    build-packages:
-      - libvirt-dev
-    prime:
-      - usr/lib/*/*.so.*
+      - libvirt-glib-1.0-0
+      - libspice-client-gtk-3.0-5
 
   tracker:
     source: https://gitlab.gnome.org/GNOME/tracker.git
@@ -244,63 +163,24 @@ parts:
       - --prefix=/usr
       - -Denable-gtk-doc=false
       - -Denable-tests=false
-      - -Dlibsoup-abi=3.0
+    build-packages:
+      - libxslt1-dev
     override-pull: |
       craftctl default
-      git apply $CRAFT_PROJECT_DIR/patches/libosinfo.patch
     override-build: |
       craftctl default
       sed -i "s#includedir=/usr/include#includedir=$CRAFT_STAGE/usr/include#g" $CRAFT_PART_INSTALL/usr/lib/$CRAFT_ARCH_TRIPLET/pkgconfig/libosinfo-1.0.pc
       sed -i "s#libdir=/usr/lib#libdir=$CRAFT_STAGE/usr/lib#g" $CRAFT_PART_INSTALL/usr/lib/$CRAFT_ARCH_TRIPLET/pkgconfig/libosinfo-1.0.pc
 
-  libphodav:
-    source: https://gitlab.gnome.org/GNOME/phodav.git
-    source-tag: 'v3.0'
-    source-depth: 1
-    plugin: meson
-    meson-parameters:
-      - --prefix=/usr
-      - -Dgtk_doc=disabled
-
-  libspice-protocol:
-    source: https://gitlab.freedesktop.org/spice/spice-protocol.git
-    source-tag: 'v0.14.4'
-    source-depth: 1
-    plugin: meson
-    after: [ libphodav ]
-    meson-parameters:
-      - --prefix=/usr
-      - --buildtype=release
-
-  libspice-gtk:
-    after: [ libspice-protocol ]
-    source: https://gitlab.freedesktop.org/spice/spice-gtk.git
-    source-tag: 'v0.42'
-    source-depth: 1
-    plugin: meson
-    override-build: |
-      python3 -m pip install six pyparsing asciidoc
-      craftctl default
-    meson-parameters:
-      - --prefix=/usr
-      - -Dgtk=enabled
-      - -Dwayland-protocols=enabled
-      - -Dintrospection=enabled
-      - -Dgtk_doc=disabled
-    build-packages:
-      - libopus-dev
-      - libgstreamer1.0-dev
-      - libgstreamer-plugins-base1.0-dev
-
   gnome-boxes:
-    after: [ libspice-gtk, libvirt-glib, tracker, libosinfo ]
+    after: [ libvirt, tracker, libosinfo ]
     source: https://gitlab.gnome.org/GNOME/gnome-boxes.git
-    source-tag: '45.0'
+    source-tag: '47.0'
     source-depth: 1
 # ext:updatesnap
 #   version-format:
-#     lower-than: 46.0
-    parse-info: [usr/share/metainfo/org.gnome.Boxes.appdata.xml]
+#     lower-than: 48.0
+    parse-info: [usr/share/metainfo/org.gnome.Boxes.metainfo.xml]
     plugin: meson
     meson-parameters:
       - --prefix=/usr
@@ -312,6 +192,8 @@ parts:
       - libgtk-vnc-2.0-dev
       - libusb-1.0-0-dev
       - cmake
+      - libvirt-glib-1.0-dev
+      - libspice-client-gtk-3.0-dev
     override-pull: |
       craftctl default
       craftctl set version=$(git describe --tags --abbrev=10)
@@ -335,19 +217,19 @@ parts:
       - libgssapi3-heimdal
       - libgtk-vnc-2.0-0
       - libgvnc-1.0-0
-      - libhcrypto4-heimdal
+      - libhcrypto5t64-heimdal
       - libheimbase1-heimdal
       - libheimntlm0-heimdal
       - libhx509-5-heimdal
       - libkrb5-26-heimdal
-      - libldap-2.5-0
+      - libldap2
       - libnghttp2-14
       - libnspr4
       - libnss3
       - libnuma1
       - libopus0
-      - libphodav-2.0-0
-      - libroken18-heimdal
+      - libphodav-3.0-0
+      - libroken19t64-heimdal
       - librtmp1
       - libsasl2-2
       - libssh-4
@@ -390,7 +272,6 @@ parts:
       - usr/bin/osinfo*
       - usr/share/misc/pci.ids
       - usr/share/misc/usb.ids
-      - var/lib/usbutils/usb.ids
 
   osinfo-db:
     after: [ libraries ]
@@ -417,9 +298,9 @@ parts:
   qemu:
     plugin: nil
     after: [ osinfo-db ]
-    stage-snaps: [ qemu-virgil/latest/edge ]
     stage-packages:
       - dnsmasq-base
+      - qemu-system-x86
 
   launcher:
     plugin: dump
